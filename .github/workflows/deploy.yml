@@ -1,0 +1,56 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run tests
+        run: npm test
+        env:
+          NODE_ENV: test
+          JWT_SECRET: test_jwt_secret
+      
+      - name: Build Docker image
+        run: docker build -t woti-v2-server:${{ github.sha }} .
+      
+      - name: Deploy to server
+        run: |
+          echo "Deployment step - configure based on your infrastructure"
+          echo "Examples: Docker push, kubectl apply, SSH deployment, etc."
+        env:
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+      
+      - name: Run database migrations
+        run: |
+          echo "Run migrations on production database"
+          # npm run migrate:up
+        env:
+          DB_HOST: ${{ secrets.PROD_DB_HOST }}
+          DB_PORT: ${{ secrets.PROD_DB_PORT }}
+          DB_NAME: ${{ secrets.PROD_DB_NAME }}
+          DB_USER: ${{ secrets.PROD_DB_USER }}
+          DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
+      
+      - name: Health check
+        run: |
+          echo "Verify deployment health"
+          # curl -f https://your-production-url/health || exit 1
