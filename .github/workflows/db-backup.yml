@@ -1,0 +1,53 @@
+name: Database Backup
+
+on:
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  backup:
+    name: Backup PostgreSQL Database
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+      
+      - name: Create backup
+        run: |
+          BACKUP_FILE="woti_backup_$(date +%Y%m%d_%H%M%S).sql"
+          PGPASSWORD=${{ secrets.PROD_DB_PASSWORD }} pg_dump \
+            -h ${{ secrets.PROD_DB_HOST }} \
+            -p ${{ secrets.PROD_DB_PORT }} \
+            -U ${{ secrets.PROD_DB_USER }} \
+            -d ${{ secrets.PROD_DB_NAME }} \
+            -F c -b -v -f $BACKUP_FILE
+          echo "BACKUP_FILE=$BACKUP_FILE" >> $GITHUB_ENV
+      
+      - name: Upload to storage
+        run: |
+          echo "Upload backup to S3, Azure Blob, or other storage"
+          # aws s3 cp ${{ env.BACKUP_FILE }} s3://your-backup-bucket/
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      
+      - name: Verify backup
+        run: |
+          echo "Verify backup integrity"
+          ls -lh ${{ env.BACKUP_FILE }}
+      
+      - name: Cleanup old backups
+        run: |
+          echo "Remove backups older than 30 days from storage"
+          # aws s3 ls s3://your-backup-bucket/ | ...
+      
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "Send notification about backup failure"
+          # Send to Slack, email, etc.
